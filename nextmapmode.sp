@@ -1,6 +1,6 @@
 #include <sourcemod>
 #pragma semicolon 1
-#define VERSION "0.1.1"
+#define VERSION "0.1.2"
 #define AUTHOR "Jasperman"
 #define TBC_URL "http://www.totalbantercommunity.com"
 #define OUTPUT_PREFIX "[NMM]"
@@ -15,6 +15,8 @@ new Handle:PLUGIN_NEXTMAP_SETMODE = INVALID_HANDLE;
 new Handle:SERVER_GAME_TYPE= INVALID_HANDLE;
 new Handle:SERVER_GAME_MODE = INVALID_HANDLE;
 new Handle:SOURCEMOD_NEXTMAP = INVALID_HANDLE;
+new Handle:CHANGE_LEVEL = INVALID_HANDLE;
+new Handle:SM_CHANGE_LEVEL = INVALID_HANDLE;
 
 new bool:plugin_enabled = true;
 new over_Write_Next_Map_Mode = false;
@@ -34,7 +36,7 @@ public Plugin:myinfo =
 
 public OnPluginStart()
 {
-	PLUGIN_ENABLED = CreateConVar("sm_nextmapmode_version", VERSION, "Version of Next Map Mode Plugin For Sourcemod",FCVAR_NOTIFY);
+	CreateConVar("sm_nextmapmode_version", VERSION, "Version of Next Map Mode Plugin For Sourcemod",FCVAR_NOTIFY);
 	PLUGIN_ENABLED = CreateConVar("nextmapmode_enable", "1", "Enable(1) or Disable(0) Next Map Mode. Default: 1",FCVAR_NOTIFY);
 	PLUGIN_DEFAULTMODE = CreateConVar("nextmapmode_defaultmode", "1", "Default Mode for undefined maps. 1-Casual, 2-Competitive, 3-Armsrace, 4-Demolition. Default:1",FCVAR_NOTIFY);
 	PLUGIN_MAPS_CASUAL = CreateConVar("nextmapmode_maps_casual", "", "List of Comma(,) Seperated Maps for casual games",FCVAR_NOTIFY);
@@ -47,18 +49,24 @@ public OnPluginStart()
 	SERVER_GAME_TYPE = FindConVar("game_type");
 	SERVER_GAME_MODE = FindConVar("game_mode");
 	SOURCEMOD_NEXTMAP = FindConVar("sm_nextmap");
+	CHANGE_LEVEL = FindConVar("changelevel");
+	SM_CHANGE_LEVEL = FindConVar("sm_map");
 
 	if (PLUGIN_NEXTMAP_SETMODE != INVALID_HANDLE)
 	{
-		HookConVarChange(PLUGIN_NEXTMAP_SETMODE, setNextMapMode);
+		HookConVarChange(PLUGIN_NEXTMAP_SETMODE, setNextMapModeEnabled);
 	}
-	if (SOURCEMOD_NEXTMAP != INVALID_HANDLE)
+	if (CHANGE_LEVEL != INVALID_HANDLE)
 	{
-		HookConVarChange(SOURCEMOD_NEXTMAP, nextMap);
+		HookConVarChange(CHANGE_LEVEL, changelevel);
+	}
+	if (SM_CHANGE_LEVEL != INVALID_HANDLE)
+	{
+		HookConVarChange(SM_CHANGE_LEVEL, changelevel);
 	}
 }
 
-public setNextMapMode(Handle:cvar, const String:oldVal[], const String:newVal[])
+public setNextMapModeEnabled(Handle:cvar, const String:oldVal[], const String:newVal[])
 {
 	new convar_value = GetConVarInt(PLUGIN_ENABLED);
 	plugin_enabled = (convar_value == 1);
@@ -70,16 +78,9 @@ public pluginsetnext_map_mode_event(Handle:cvar, const String:oldVal[], const St
 	over_Write_Next_Map_Mode = ((next_map_mode > 0) && (next_map_mode < 5));
 }
 
-public nextMap(Handle:cvar, const String:oldVal[], const String:newVal[])
+public changelevel(Handle:cvar, const String:oldVal[], const String:newVal[])
 {
-	if(!over_Write_Next_Map_Mode)
-	{
-		next_map_mode = getnext_map_mode();
-	}
-	else
-	{
-		over_Write_Next_Map_Mode = false;
-	}
+	setNextMapMode();
 }
 
 getnext_map_mode()
@@ -131,40 +132,53 @@ getnext_map_mode()
 	return thenext_map_mode;
 }
 
-public OnMapEnd()
+setNextMapMode()
 {
-	decl String:gameMode[36];
-	switch(next_map_mode)
-	{
-		case 1: 
-		{
-			game_type = 0;
-			game_mode = 0;
-			gameMode = "Classic Casual";
-		}
-		case 2: 
-		{
-			game_type = 0;
-			game_mode = 1;
-			gameMode = "Classic Competitive";
-		}
-		case 3: 
-		{
-			game_type = 1;
-			game_mode = 0;
-			gameMode = "Classic Casual";
-		}
-		case 4: 
-		{
-			game_type = 1;
-			game_mode = 1;
-			gameMode = "Classic Casual";
-		}
-	}
 	if(plugin_enabled)
 	{
+		if(!over_Write_Next_Map_Mode)
+		{
+			next_map_mode = getnext_map_mode();
+		}
+		else
+		{
+			over_Write_Next_Map_Mode = false;
+		}
+		decl String:gameMode[36];
+		switch(next_map_mode)
+		{
+			case 1: 
+			{
+				game_type = 0;
+				game_mode = 0;
+				gameMode = "Classic Casual";
+			}
+			case 2: 
+			{
+				game_type = 0;
+				game_mode = 1;
+				gameMode = "Classic Competitive";
+			}
+			case 3: 
+			{
+				game_type = 1;
+				game_mode = 0;
+				gameMode = "Classic Casual";
+			}
+			case 4: 
+			{
+				game_type = 1;
+				game_mode = 1;
+				gameMode = "Classic Casual";
+			}
+		}
 		SetConVarInt(SERVER_GAME_TYPE, game_type);
 		SetConVarInt(SERVER_GAME_MODE, game_mode);
-		PrintToChatAll("%sNext Game Mode is %s",OUTPUT_PREFIX,gameMode);
+		PrintToChatAll("%sNext Map Game Mode is %s",OUTPUT_PREFIX,gameMode);
+		PrintToServer("%sNext Map Game Mode is %s",OUTPUT_PREFIX,gameMode);
 	}
+}
+public OnMapEnd()
+{
+	setNextMapMode();
 }
