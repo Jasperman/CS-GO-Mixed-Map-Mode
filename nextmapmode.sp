@@ -1,14 +1,11 @@
 #include <sourcemod>
-#include <sdktools>
 #pragma semicolon 1
-#define VERSION "0.0.1"
+#define VERSION "0.1.1"
 #define AUTHOR "Jasperman"
 #define TBC_URL "http://www.totalbantercommunity.com"
-#define OUTPUT_PREFIX "MMGM"
+#define OUTPUT_PREFIX "[NMM]"
 
-//new Handle:<HANDLE_NAME> = INVALID_HANDLE;
 new Handle:PLUGIN_ENABLED = INVALID_HANDLE;
-new Handle:PLUGIN_MESSAGES = INVALID_HANDLE;
 new Handle:PLUGIN_DEFAULTMODE = INVALID_HANDLE;
 new Handle:PLUGIN_MAPS_CASUAL = INVALID_HANDLE;
 new Handle:PLUGIN_MAPS_COMPETITIVE= INVALID_HANDLE;
@@ -19,12 +16,11 @@ new Handle:SERVER_GAME_TYPE= INVALID_HANDLE;
 new Handle:SERVER_GAME_MODE = INVALID_HANDLE;
 new Handle:SOURCEMOD_NEXTMAP = INVALID_HANDLE;
 
-new bool:printmessages = true;
-new bool:pluginenable = true;
-new overwritenextmapMode = false;
-new nextmapMode = 0;
-new gametype = 0;
-new gamemode = 0;
+new bool:plugin_enabled = true;
+new over_Write_Next_Map_Mode = false;
+new next_map_mode = 0;
+new game_type = 0;
+new game_mode = 0;
 
 public Plugin:myinfo = 
 {
@@ -38,136 +34,55 @@ public Plugin:myinfo =
 
 public OnPluginStart()
 {
-	//Set up Custom CVARS
-	//<HANDLE_NAME> = CreateConVar("<CVAR>", "<DEFAULT_VALUE>", "<DESCRIPTION>");
-	PLUGIN_ENABLED = CreateConVar("sm_nmm_enable", "1", "Enable(1) or Disable(0) plugin. Default:1");
-	PLUGIN_MESSAGES = CreateConVar("sm_nmm_messages", "1", "Enable(1) or Disable(0) plugin messages. Default:1");
-	PLUGIN_DEFAULTMODE = CreateConVar("sm_nmm_defaultmode", "1", "Default Mode for plugin. 1-Casual, 2-Competitive, 3-Armsrace, 4-Demolition. Default:1");
-	PLUGIN_MAPS_CASUAL = CreateConVar("sm_nmm_maps_casual", "", "List of Comma(,) Seperated Maps for casual games");
-	PLUGIN_MAPS_COMPETITIVE = CreateConVar("sm_nmm_maps_competitive", "", "List of Comma(,) Seperated Maps for competitive games");
-	PLUGIN_MAPS_ARMSRACE = CreateConVar("sm_nmm_maps_armsrace", "", "List of Comma(,) Seperated Maps for armsrace games");
-	PLUGIN_MAPS_DEMOLITION = CreateConVar("sm_nmm_maps_demolition", "", "List of Comma(,) Seperated Maps for demolition games");
-	PLUGIN_NEXTMAP_SETMODE = CreateConVar("sm_nmm_nextmap_setmode", "1", "Set the next maps mode 1-Casual, 2-Competitive, 3-Armsrace, 4-Demolition This will Overwrite the next maps mode. Default:1");
+	PLUGIN_ENABLED = CreateConVar("sm_nextmapmode_version", VERSION, "Version of Next Map Mode Plugin For Sourcemod",FCVAR_NOTIFY);
+	PLUGIN_ENABLED = CreateConVar("nextmapmode_enable", "1", "Enable(1) or Disable(0) Next Map Mode. Default: 1",FCVAR_NOTIFY);
+	PLUGIN_DEFAULTMODE = CreateConVar("nextmapmode_defaultmode", "1", "Default Mode for undefined maps. 1-Casual, 2-Competitive, 3-Armsrace, 4-Demolition. Default:1",FCVAR_NOTIFY);
+	PLUGIN_MAPS_CASUAL = CreateConVar("nextmapmode_maps_casual", "", "List of Comma(,) Seperated Maps for casual games",FCVAR_NOTIFY);
+	PLUGIN_MAPS_COMPETITIVE = CreateConVar("nextmapmode_maps_competitive", "", "List of Comma(,) Seperated Maps for competitive games",FCVAR_NOTIFY);
+	PLUGIN_MAPS_ARMSRACE = CreateConVar("nextmapmode_maps_armsrace", "", "List of Comma(,) Seperated Maps for armsrace games",FCVAR_NOTIFY);
+	PLUGIN_MAPS_DEMOLITION = CreateConVar("nextmapmode_maps_demolition", "", "List of Comma(,) Seperated Maps for demolition games",FCVAR_NOTIFY);
+	PLUGIN_NEXTMAP_SETMODE = CreateConVar("nextmapmode_set_nextmap_mode", "", "Set the next maps mode 1-Casual, 2-Competitive, 3-Armsrace, 4-Demolition This will Overwrite the next maps mode (ignoring the defined maplists).",FCVAR_NOTIFY);
 	
 	//Get Server CVARS
 	SERVER_GAME_TYPE = FindConVar("game_type");
 	SERVER_GAME_MODE = FindConVar("game_mode");
 	SOURCEMOD_NEXTMAP = FindConVar("sm_nextmap");
-	
-//	if (<HANDLE_NAME> != INVALID_HANDLE)
-//	{
-//		HookConVarChange(<HANDLE_NAME>, <METHOD_CALL>);
-//	}
 
-	if (PLUGIN_MESSAGES != INVALID_HANDLE)
-	{
-		HookConVarChange(PLUGIN_MESSAGES, pluginmessages_event);
-	}
-	if (PLUGIN_ENABLED != INVALID_HANDLE)
-	{
-		HookConVarChange(PLUGIN_ENABLED, pluginenable_event);
-	}
 	if (PLUGIN_NEXTMAP_SETMODE != INVALID_HANDLE)
 	{
-		HookConVarChange(PLUGIN_NEXTMAP_SETMODE, pluginsetnextmapmode_event);
-	}
-	if (SERVER_GAME_TYPE != INVALID_HANDLE && SERVER_GAME_MODE != INVALID_HANDLE)
-	{
-		HookConVarChange(SERVER_GAME_TYPE, type_event);
-		HookConVarChange(SERVER_GAME_MODE, mode_event);
+		HookConVarChange(PLUGIN_NEXTMAP_SETMODE, setNextMapMode);
 	}
 	if (SOURCEMOD_NEXTMAP != INVALID_HANDLE)
 	{
-		HookConVarChange(SOURCEMOD_NEXTMAP, nextmap);
+		HookConVarChange(SOURCEMOD_NEXTMAP, nextMap);
 	}
 }
 
-
-//HookEvent("round_start", roundstart_event);
-public pluginmessages_event(Handle:cvar, const String:oldVal[], const String:newVal[])
-{
-	new convar_value = GetConVarInt(PLUGIN_MESSAGES);
-	decl String:convar_name[64];
-	GetConVarName(PLUGIN_MESSAGES,convar_name,64);
-	printmessages = (convar_value == 1);
-	PrintToServer("[%s] %s set to %s",OUTPUT_PREFIX,convar_name,newVal);
-	if(printmessages)
-	{
-		PrintToServer("[%s] Will now Print Messages",OUTPUT_PREFIX);
-	}
-	else
-	{
-		PrintToServer("[%s] Will stop Printing Messages",OUTPUT_PREFIX,newVal);
-	}
-}
-
-public pluginenable_event(Handle:cvar, const String:oldVal[], const String:newVal[])
+public setNextMapMode(Handle:cvar, const String:oldVal[], const String:newVal[])
 {
 	new convar_value = GetConVarInt(PLUGIN_ENABLED);
-	pluginenable = (convar_value == 1);
-	if(printmessages)
-	{
-		decl String:convar_name[64];
-		GetConVarName(PLUGIN_ENABLED,convar_name,64);
-		PrintToServer("[%s] %s set to %s",OUTPUT_PREFIX,convar_name,newVal);
-		if(pluginenable)
-		{
-			PrintToServer("[%s] Plugin Enabled",OUTPUT_PREFIX);
-		}
-		else
-		{
-			PrintToServer("[%s] Plugin Disabled",OUTPUT_PREFIX,newVal);
-		}
-	}
+	plugin_enabled = (convar_value == 1);
 }
 
-public pluginsetnextmapmode_event(Handle:cvar, const String:oldVal[], const String:newVal[])
+public pluginsetnext_map_mode_event(Handle:cvar, const String:oldVal[], const String:newVal[])
 {
-	nextmapMode = GetConVarInt(PLUGIN_NEXTMAP_SETMODE);
-	overwritenextmapMode = (nextmapMode > 0 && nextmapMode < 5 );
-	if(printmessages)
-	{
-		decl String:convar_name[64];
-		GetConVarName(PLUGIN_NEXTMAP_SETMODE,convar_name,64);
-		PrintToServer("[%s] %s set to %s",OUTPUT_PREFIX,convar_name,newVal);
-	}
+	next_map_mode = GetConVarInt(PLUGIN_NEXTMAP_SETMODE);
+	over_Write_Next_Map_Mode = ((next_map_mode > 0) && (next_map_mode < 5));
 }
 
-public type_event(Handle:cvar, const String:oldVal[], const String:newVal[])
+public nextMap(Handle:cvar, const String:oldVal[], const String:newVal[])
 {
-	gametype = GetConVarInt(SERVER_GAME_TYPE);
-	if(printmessages)
+	if(!over_Write_Next_Map_Mode)
 	{
-		decl String:convar_name[64];
-		GetConVarName(SERVER_GAME_TYPE,convar_name,64);
-		PrintToServer("[%s] %s set to %s",OUTPUT_PREFIX,convar_name,newVal);
-	}
-}
-
-public mode_event(Handle:cvar, const String:oldVal[], const String:newVal[])
-{
-	gamemode = GetConVarInt(SERVER_GAME_MODE);
-	if(printmessages)
-	{
-		decl String:convar_name[64];
-		GetConVarName(SERVER_GAME_MODE,convar_name,64);
-		PrintToServer("[%s] %s set to %s",OUTPUT_PREFIX,convar_name,newVal);
-	}
-}
-
-public nextmap(Handle:cvar, const String:oldVal[], const String:newVal[])
-{
-	if(!overwritenextmapMode)
-	{
-		nextmapMode = getNextMapMode();
+		next_map_mode = getnext_map_mode();
 	}
 	else
 	{
-		overwritenextmapMode = false;
+		over_Write_Next_Map_Mode = false;
 	}
 }
 
-getNextMapMode()
+getnext_map_mode()
 {
 	decl String:casualmaps[512];
 	decl String:competitivemaps[512];
@@ -179,7 +94,7 @@ getNextMapMode()
 	GetConVarString(PLUGIN_MAPS_ARMSRACE,armsracemaps,512);
 	GetConVarString(PLUGIN_MAPS_DEMOLITION,demolitionmaps,512);
 	GetConVarString(SOURCEMOD_NEXTMAP,smnextmap,64);
-	new theNextMapMode = 0;
+	new thenext_map_mode = 0;
 	new bool:iscasual = (StrContains(casualmaps,smnextmap,false) != -1);
 	new bool:iscompetitive = (StrContains(competitivemaps,smnextmap,false) != -1);
 	new bool:isarmsrace = (StrContains(armsracemaps,smnextmap,false) != -1);
@@ -187,55 +102,69 @@ getNextMapMode()
 
 	if(iscasual)
 	{
-		theNextMapMode = 1;
+		thenext_map_mode = 1;
 	}
 	else if(iscompetitive)
 	{
-		theNextMapMode = 2;
+		thenext_map_mode = 2;
 	}	
 	else if(isarmsrace)
 	{
-		theNextMapMode = 3;
+		thenext_map_mode = 3;
 	}	
 	else if(isdemolotion)
 	{
-		theNextMapMode = 4;
+		thenext_map_mode = 4;
 	}
 	else
 	{
-		theNextMapMode = GetConVarInt(PLUGIN_DEFAULTMODE);
+		new defaultMode = GetConVarInt(PLUGIN_DEFAULTMODE);
+		if((defaultMode < 5) && (defaultMode > 0))
+		{
+			thenext_map_mode = defaultMode;
+		}
+		else
+		{
+			thenext_map_mode = 1;
+		}
 	}
-	return theNextMapMode;
+	return thenext_map_mode;
 }
 
 public OnMapEnd()
 {
-	switch(nextmapMode)
+	decl String:gameMode[36];
+	switch(next_map_mode)
 	{
 		case 1: 
 		{
-			gametype = 0;
-			gamemode = 0;
+			game_type = 0;
+			game_mode = 0;
+			gameMode = "Classic Casual";
 		}
 		case 2: 
 		{
-			gametype = 0;
-			gamemode = 1;
+			game_type = 0;
+			game_mode = 1;
+			gameMode = "Classic Competitive";
 		}
 		case 3: 
 		{
-			gametype = 1;
-			gamemode = 0;
+			game_type = 1;
+			game_mode = 0;
+			gameMode = "Classic Casual";
 		}
 		case 4: 
 		{
-			gametype = 1;
-			gamemode = 1;
+			game_type = 1;
+			game_mode = 1;
+			gameMode = "Classic Casual";
 		}
 	}
-	SetConVarInt(SERVER_GAME_TYPE, gametype);
-	SetConVarInt(SERVER_GAME_MODE, gamemode);
+	if(plugin_enabled)
+	{
+		SetConVarInt(SERVER_GAME_TYPE, game_type);
+		SetConVarInt(SERVER_GAME_MODE, game_mode);
+		PrintToChatAll("%sNext Game Mode is %s",OUTPUT_PREFIX,gameMode);
+	}
 }
-
-
-
