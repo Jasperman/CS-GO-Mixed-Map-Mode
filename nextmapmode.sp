@@ -1,6 +1,6 @@
 #include <sourcemod>
 #pragma semicolon 1
-#define VERSION "0.1.2"
+#define PLUGIN_VERSION "1.0.0"
 #define AUTHOR "Jasperman"
 #define TBC_URL "http://www.totalbantercommunity.com"
 #define OUTPUT_PREFIX "[NMM]"
@@ -29,14 +29,14 @@ public Plugin:myinfo =
 	name = "Next Map Mode",
 	author = AUTHOR,
 	description = "This plugin will allow a server to configure a Game Type and Mode for the next map",
-	version = VERSION,
+	version = PLUGIN_VERSION,
 	url = TBC_URL
 };
 
 
 public OnPluginStart()
 {
-	CreateConVar("sm_nextmapmode_version", VERSION, "Version of Next Map Mode Plugin For Sourcemod",FCVAR_NOTIFY);
+	CreateConVar("sm_nextmapmode_version", PLUGIN_VERSION, "Version of Next Map Mode Plugin For Sourcemod",FCVAR_NOTIFY);
 	PLUGIN_ENABLED = CreateConVar("nextmapmode_enable", "1", "Enable(1) or Disable(0) Next Map Mode. Default: 1",FCVAR_NOTIFY);
 	PLUGIN_DEFAULTMODE = CreateConVar("nextmapmode_defaultmode", "1", "Default Mode for undefined maps. 1-Casual, 2-Competitive, 3-Armsrace, 4-Demolition. Default:1",FCVAR_NOTIFY);
 	PLUGIN_MAPS_CASUAL = CreateConVar("nextmapmode_maps_casual", "", "List of Comma(,) Seperated Maps for casual games",FCVAR_NOTIFY);
